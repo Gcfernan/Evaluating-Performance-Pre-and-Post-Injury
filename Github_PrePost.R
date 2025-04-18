@@ -132,9 +132,9 @@ cleaned_data$pitcher <- as.factor(cleaned_data$pitcher)
 cleaned_data$appearance <- as.factor(cleaned_data$appearance)
 
 # Fit a GAM for pitch velocity using smooth functions for non-linear effects.
-gam_velocity <- gam(pitch_velocity ~ status + s(pitch_count) + pitch_type + 
-                      s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re") +
-                      event_time,
+gam_velocity <- gam(pitch_velocity ~ injury_status + s(pitch_count)  + 
+                      s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re")+
+                      Injury_Time + ti(Injury_Time, by = injury_status) + s(Injury_Time, pitcher, bs = "re"),
                     data = cleaned_data, method = "REML")
 velocity_summary <- summary(gam_velocity)
 
@@ -154,10 +154,10 @@ sensitivity_data <- cleaned_data %>%
   )
 
 # Fit a GAM using the maximum velocity metric as an example.
-gam_max_velocity <- gam(max_velocity ~ status + pitch_count + pitch_type + 
-                          s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re") +
-                          event_time,
-                        data = sensitivity_data, method = "REML")
+gam_max_velocity <- ggam(max_velocity ~ injury_status + pitch_count  + 
+                           s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re")+
+                           Injury_Time + ti(Injury_Time, by = injury_status) + s(Injury_Time, pitcher, bs = "re"),
+                         data = sensitivity_data, method = "REML")
 max_velocity_summary <- summary(gam_max_velocity)
 
 # ========================================
