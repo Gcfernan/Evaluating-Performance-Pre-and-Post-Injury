@@ -59,13 +59,13 @@ cleaned_data <- cleaned_data %>%
   ) %>%
   ungroup()
 
-# Define parts of the season (Beginning, Middle, End) based on league dates.
-league_date_ranges <- cleaned_data %>%
+# Define parts of the season (Beginning, Middle, End)
+season_date_ranges <- cleaned_data %>%
   group_by(league) %>%
   summarise(min_date = min(date), max_date = max(date))
 
 cleaned_data <- cleaned_data %>%
-  left_join(league_date_ranges, by = "league") %>%
+  left_join(season_date_ranges, by = "league") %>%
   mutate(date_category = case_when(
     date <= min_date + (max_date - min_date) * 0.33 ~ "Beginning",
     date > min_date + (max_date - min_date) * 0.33 &
@@ -111,7 +111,7 @@ if (any(is.na(cleaned_data$event_time))) {
   cat("Warning: There are missing values in the event_time column.\n")
 }
 cleaned_data$event_time <- as.numeric(cleaned_data$event_time)
-
+event_time -> Injury_Time
 # ========================================
 # Visualization: Density Plots
 # ========================================
@@ -256,3 +256,4 @@ ggplot(random_effects_selected, aes(x = pitcher, y = random_effect)) +
        x = "Pitcher",
        y = "Random Effect") +
   theme_minimal()
+
