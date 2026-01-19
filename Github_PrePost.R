@@ -44,7 +44,9 @@ cleaned_data <- combined_data %>%
     team = factor(team),
     league = factor(league),
     status = factor(status)
-  )
+  )%>%
+  rename(Injury_status = status) %>%
+  rename(Injury_Time = event_time)
 
 # Convert date strings to Date objects, order events for each pitcher,
 # and calculate the number of weeks from the first post-event (e.g., injury) date.
@@ -54,7 +56,7 @@ cleaned_data <- cleaned_data %>%
   arrange(pitcher, date) %>%
   mutate(
     appearance = dense_rank(date),
-    event_date = min(date[status == "Post-Injury"], na.rm = TRUE),  # First post-event date per pitcher
+    event_date = min(date[Injury_status == "Post-Injury"], na.rm = TRUE),  # First post-event date per pitcher
     weeks_from_event = as.numeric(difftime(date, event_date, units = "weeks"))
   ) %>%
   ungroup()
@@ -97,26 +99,26 @@ summary_stats <- cleaned_data %>%
 # Adding Event Timing Data 
 # ========================================
 # Create a data frame with generic identifiers and event timing values.
-event_time_data <- data.frame(
+Injury_Time_data <- data.frame(
   pitcher = c("ID1", "ID2", "ID3", "ID4", "ID5", "ID6", "ID7", "ID8", "ID9", "ID10"),
-  event_time = c(14, 24, 33, 53, 65, 10, 23, 42, 9, 11)
+  Injury_Time = c(14, 24, 33, 53, 65, 10, 23, 42, 9, 11)
 )
 
 # Merge the event timing data with the main dataset.
 cleaned_data <- cleaned_data %>%
-  left_join(event_time_data, by = "pitcher")
+  left_join(Injury_Time_data, by = "pitcher")
 
-# Check for missing event_time values and ensure the column is numeric.
-if (any(is.na(cleaned_data$event_time))) {
-  cat("Warning: There are missing values in the event_time column.\n")
+# Check for missing Injury_time values and ensure the column is numeric.
+if (any(is.na(cleaned_data$Injury_Time))) {
+  cat("Warning: There are missing values in the Injury_Time column.\n")
 }
-cleaned_data$event_time <- as.numeric(cleaned_data$event_time)
-event_time -> Injury_Time
+cleaned_data$Injury_Time <- as.numeric(cleaned_data$Injury_Time)
+
 # ========================================
 # Visualization: Density Plots
 # ========================================
 # Plot density curves for pitch velocity comparing pre- and post-event statuses.
-ggplot(cleaned_data, aes(x = pitch_velocity, fill = status)) +
+ggplot(cleaned_data, aes(x = pitch_velocity, fill = Injury_status)) +
   geom_density(alpha = 0.5) +
   labs(title = "Pitch Velocity: Pre vs. Post Event",
        x = "Velocity (mph)", y = "Density")
@@ -127,14 +129,14 @@ ggplot(cleaned_data, aes(x = pitch_velocity, fill = status)) +
 # Statistical Modeling with GAMs
 # ========================================
 # Set "Post-Injury" as the reference level for the status factor.
-cleaned_data$status <- relevel(cleaned_data$status, ref = "Post-Injury")
+cleaned_data$Injury_status <- relevel(cleaned_data$Injury_status, ref = "Post-Injury")
 cleaned_data$pitcher <- as.factor(cleaned_data$pitcher)
 cleaned_data$appearance <- as.factor(cleaned_data$appearance)
 
 # Fit a GAM for pitch velocity using smooth functions for non-linear effects.
-gam_velocity <- gam(pitch_velocity ~ injury_status + s(pitch_count)  + 
+gam_velocity <- gam(pitch_velocity ~ Injury_status + s(pitch_count)  + 
                       s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re")+
-                      Injury_Time + ti(Injury_Time, by = injury_status) + s(Injury_Time, pitcher, bs = "re"),
+                      Injury_Time + ti(Injury_Time, by = Injury_status) + s(Injury_Time, pitcher, bs = "re"),
                     data = cleaned_data, method = "REML")
 velocity_summary <- summary(gam_velocity)
 
@@ -154,9 +156,9 @@ sensitivity_data <- cleaned_data %>%
   )
 
 # Fit a GAM using the maximum velocity metric as an example.
-gam_max_velocity <- ggam(max_velocity ~ injury_status + pitch_count  + 
+gam_max_velocity <- gam(max_velocity ~ Injury_status + pitch_count  + 
                            s(vertical_break) + s(horizontal_break) + s(pitcher, bs = "re")+
-                           Injury_Time + ti(Injury_Time, by = injury_status) + s(Injury_Time, pitcher, bs = "re"),
+                           Injury_Time + ti(Injury_Time, by = Injury_status) + s(Injury_Time, pitcher, bs = "re"),
                          data = sensitivity_data, method = "REML")
 max_velocity_summary <- summary(gam_max_velocity)
 
@@ -164,7 +166,7 @@ max_velocity_summary <- summary(gam_max_velocity)
 # Estimated Marginal Means (EMMs) and Plotting
 # ========================================
 # Calculate estimated marginal means for pitch velocity by status.
-emm_velocity <- emmeans(gam_velocity, ~ status)
+emm_velocity <- emmeans(gam_velocity, ~ Injury_status)
 emm_velocity_CI <- confint(emm_velocity, level = 0.95)
 print(emm_velocity_CI)
 
@@ -225,8 +227,8 @@ for (metric in metrics) {
 velocity_change <- cleaned_data %>%
   group_by(pitcher) %>%
   summarize(
-    pre_velocity = mean(pitch_velocity[status == "Pre-Injury"], na.rm = TRUE),
-    post_velocity = mean(pitch_velocity[status == "Post-Injury"], na.rm = TRUE),
+    pre_velocity = mean(pitch_velocity[Injury_status == "Pre-Injury"], na.rm = TRUE),
+    post_velocity = mean(pitch_velocity[Injury_status == "Post-Injury"], na.rm = TRUE),
     velocity_change = post_velocity - pre_velocity
   )
 print(velocity_change)
@@ -256,4 +258,5 @@ ggplot(random_effects_selected, aes(x = pitcher, y = random_effect)) +
        x = "Pitcher",
        y = "Random Effect") +
   theme_minimal()
+
 
